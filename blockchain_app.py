@@ -23,7 +23,6 @@ class Blockchain:
         self.chain = []
         self.nodes = set()
         
-        # --- NEW: Load the blockchain from disk if it exists ---
         self.load_chain_from_disk()
 
     def load_chain_from_disk(self):
@@ -35,7 +34,6 @@ class Blockchain:
                 self.nodes = set(data['nodes'])
                 print(f"Loaded blockchain with {len(self.chain)} blocks from {CHAIN_DATA_FILE}")
         except (FileNotFoundError, json.JSONDecodeError):
-            # If file doesn't exist or is empty, create the genesis block
             self.new_block(previous_hash='1', proof=100)
             self.save_chain_to_disk()
             print(f"No valid chain found, created new genesis block.")
@@ -55,7 +53,6 @@ class Blockchain:
         if parsed_url.netloc:
             self.nodes.add(parsed_url.netloc)
         elif parsed_url.path:
-            # Accepts an URL without scheme like '192.168.0.5:5000'.
             self.nodes.add(parsed_url.path)
 
     def new_block(self, proof, previous_hash):
@@ -69,14 +66,13 @@ class Blockchain:
         }
         self.current_transactions = []
         self.chain.append(block)
-        # --- NEW: Save chain after adding a block ---
         self.save_chain_to_disk()
         return block
 
     def new_transaction(self, sender_public_key, recipient_address, amount, signature):
         """
         Creates a new transaction after verifying it.
-        Returns the index of the block that will hold this transaction, or False if invalid.
+        --- MODIFIED: Returns a tuple (success, message) ---
         """
         transaction_data = {
             'sender_public_key': sender_public_key,
@@ -84,27 +80,24 @@ class Blockchain:
             'amount': amount
         }
 
-        # --- NEW: Verification Step 1: Verify the signature ---
+        # Verification Step 1: Verify the signature
         if not self.verify_signature(sender_public_key, signature, transaction_data):
-            print("Transaction signature verification failed.")
-            return False
+            return (False, "Invalid transaction signature.")
 
-        # --- NEW: Verification Step 2: Verify the sender has enough funds ---
+        # Verification Step 2: Verify the sender has enough funds
         sender_address = self.get_address_from_public_key(sender_public_key)
         if self.get_balance(sender_address) < amount:
-            print("Transaction failed: Insufficient funds.")
-            return False
+            return (False, "Insufficient funds.")
 
-        # Add the full transaction details (including signature for record)
+        # Add the full transaction details
         self.current_transactions.append({**transaction_data, 'signature': signature})
-        return self.last_block['index'] + 1
+        return (True, self.last_block['index'] + 1)
 
     def get_balance(self, address):
         """Calculate the balance for a given address."""
         balance = 0
         for block in self.chain:
             for tx in block['transactions']:
-                # The sender public key is converted to an address for comparison
                 tx_sender_address = self.get_address_from_public_key(tx.get('sender_public_key'))
                 if tx_sender_address == address:
                     balance -= tx['amount']
@@ -130,7 +123,7 @@ class Blockchain:
     @staticmethod
     def verify_signature(public_key_hex, signature_hex, transaction_data):
         """Verify a signature for a given transaction."""
-        if public_key_hex == MINING_SENDER: # Mining transactions are not signed
+        if public_key_hex == MINING_SENDER:
             return True
         try:
             public_key = ed25519.Ed25519PublicKey.from_public_bytes(bytes.fromhex(public_key_hex))
@@ -224,12 +217,8 @@ def home():
 @app.route('/mine', methods=['POST'])
 def mine():
     last_block = blockchain.last_block
-    last_proof = last_block['proof']
-    proof = blockchain.proof_of_work(last_proof)
+    proof = blockchain.proof_of_work(last_block['proof'])
 
-    # We must receive a reward for finding the proof.
-    # The sender is "0" to signify that this node has mined a new coin.
-    # The recipient is our node's unique address.
     node_address = blockchain.get_address_from_public_key(node_identifier)
     blockchain.current_transactions.append({
         'sender_public_key': MINING_SENDER,
@@ -242,24 +231,19 @@ def mine():
     block = blockchain.new_block(proof, previous_hash)
 
     response = {
-        'message': "New Block Forged",
+        'message': "New Block Forged!",
         'index': block['index'],
-        'transactions': block['transactions'],
-        'proof': block['proof'],
-        'previous_hash': block['previous_hash'],
     }
     return jsonify(response), 200
 
 @app.route('/transactions/new', methods=['POST'])
 def handle_new_transaction():
     values = request.get_json()
-    # --- MODIFIED: The endpoint now expects a private key to sign the transaction ---
     required = ['private_key', 'recipient_address', 'amount']
     if not all(k in values for k in required):
-        return 'Missing values', 400
+        return jsonify({'message': 'Missing required fields.'}), 400
 
     try:
-        # Derive public key from private key
         private_key = ed25519.Ed25519PrivateKey.from_private_bytes(bytes.fromhex(values['private_key']))
         public_key = private_key.public_key()
         public_key_hex = public_key.public_bytes(
@@ -275,17 +259,21 @@ def handle_new_transaction():
         
         signature_hex = sign_transaction(values['private_key'], transaction_data)
         
-        # Pass to the blockchain to validate and add
-        index = blockchain.new_transaction(public_key_hex, values['recipient_address'], int(values['amount']), signature_hex)
+        # --- MODIFIED: Handle the new tuple return format ---
+        success, message = blockchain.new_transaction(
+            public_key_hex,
+            values['recipient_address'],
+            int(values['amount']),
+            signature_hex
+        )
 
-        if not index:
-            return jsonify({'message': 'Transaction rejected.'}), 400
+        if not success:
+            return jsonify({'message': message}), 400
             
         full_transaction = {**transaction_data, 'signature': signature_hex}
-        # --- NEW: Broadcast transaction to other nodes ---
         blockchain.broadcast_transaction(full_transaction)
 
-        response = {'message': f'Transaction will be added to Block {index}'}
+        response = {'message': f'Transaction queued for Block {message}'}
         return jsonify(response), 201
 
     except (ValueError, TypeError):
@@ -297,36 +285,35 @@ def receive_transaction():
     values = request.get_json()
     required = ['sender_public_key', 'recipient_address', 'amount', 'signature']
     if not all(k in values for k in required):
-        return 'Missing transaction data', 400
+        return jsonify({'message': 'Missing transaction data'}), 400
 
-    index = blockchain.new_transaction(values['sender_public_key'], values['recipient_address'], values['amount'], values['signature'])
-    if not index:
-        return jsonify({'message': 'Received transaction was rejected.'}), 400
+    # --- MODIFIED: Handle the new tuple return format ---
+    success, message = blockchain.new_transaction(
+        values['sender_public_key'],
+        values['recipient_address'],
+        values['amount'],
+        values['signature']
+    )
+    if not success:
+        return jsonify({'message': f'Received transaction rejected: {message}'}), 400
     
     return jsonify({'message': 'Transaction added to pool.'}), 201
 
 @app.route('/chain', methods=['GET'])
 def full_chain():
-    response = {
-        'chain': blockchain.chain,
-        'length': len(blockchain.chain),
-    }
-    return jsonify(response), 200
+    return jsonify({'chain': blockchain.chain, 'length': len(blockchain.chain)}), 200
 
 @app.route('/nodes/register', methods=['POST'])
 def register_nodes():
     values = request.get_json()
     nodes = values.get('nodes')
     if nodes is None:
-        return "Error: Please supply a valid list of nodes", 400
+        return jsonify({'message': "Error: Please supply a valid list of nodes"}), 400
     for node in nodes:
         blockchain.register_node(node)
     
-    blockchain.save_chain_to_disk() # Save nodes list
-    response = {
-        'message': 'New nodes have been added',
-        'total_nodes': list(blockchain.nodes),
-    }
+    blockchain.save_chain_to_disk()
+    response = {'message': 'New nodes have been added', 'total_nodes': list(blockchain.nodes)}
     return jsonify(response), 201
 
 @app.route('/nodes/resolve', methods=['GET'])
@@ -338,11 +325,9 @@ def consensus():
         response = {'message': 'Our chain is authoritative', 'chain': blockchain.chain}
     return jsonify(response), 200
 
-# === NEW: Wallet Management Endpoints ===
-
+# === Wallet Management Endpoints ===
 @app.route('/wallet/new', methods=['GET'])
 def new_wallet():
-    """Generates a new private/public key pair."""
     private_key = ed25519.Ed25519PrivateKey.generate()
     public_key = private_key.public_key()
     
@@ -369,11 +354,10 @@ def new_wallet():
 def get_wallet_balance():
     address = request.args.get('address')
     if not address:
-        return 'Missing address parameter', 400
+        return jsonify({'message': 'Missing address parameter'}), 400
     
     balance = blockchain.get_balance(address)
     return jsonify({'address': address, 'balance': balance}), 200
-
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
