@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar - Blockchain Interface</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --background: #010409;
+            --surface: rgba(13, 17, 23, 0.7);
+            --primary: #2DD4BF; /* Teal */
+            --primary-glow: rgba(45, 212, 191, 0.2);
+            --secondary: #21262d;
+            --text-primary: #F0F6FC;
+            --text-secondary: #8B949E;
+            --success: #39D353; /* Green */
+            --error: #F85149; /* Red */
+            --warning-bg: rgba(248, 129, 73, 0.1);
+            --warning-border: #F88149;
+            --warning-text: #F88149;
+            --border: rgba(48, 54, 61, 0.8);
+            --shadow: 0px 10px 30px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+        
+        .aurora-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -2;
+        }
+
+        .aurora {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.2;
+        }
+
+        .aurora-1 {
+            width: 600px;
+            height: 600px;
+            background: #2dd4bf;
+            top: -20%;
+            left: -10%;
+            animation: moveAurora1 25s infinite alternate ease-in-out;
+        }
+
+        .aurora-2 {
+            width: 500px;
+            height: 500px;
+            background: #38bdf8;
+            bottom: -25%;
+            right: -15%;
+            animation: moveAurora2 30s infinite alternate ease-in-out;
+        }
+
+        @keyframes moveAurora1 {
+            to { transform: translate(100px, 200px); }
+        }
+        @keyframes moveAurora2 {
+            to { transform: translate(-200px, -150px); }
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 40px;
+            padding: 5vh 5vw;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .sidebar {
+            height: 90vh;
+            position: sticky;
+            top: 5vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            animation: fadeIn 0.5s ease-out forwards;
+            opacity: 0;
+        }
+        
+        .main-content .card { animation-delay: calc(var(--i, 0) * 100ms); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h2 svg { stroke: var(--primary); }
+
+        .btn {
+            padding: 12px 20px;
+            background: var(--primary);
+            color: #010409;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.2s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0px 0px 20px var(--primary-glow);
+        }
+        
+        .btn:disabled { cursor: not-allowed; opacity: 0.6; }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s ease-in-out;
+        }
+        
+        textarea { resize: vertical; min-height: 80px; }
+        input::placeholder, textarea::placeholder { color: var(--text-secondary); }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+        
+        .security-warning {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            background-color: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            color: var(--warning-text);
+        }
+        
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+            background-color: rgba(45, 53, 62, 0.5);
+            padding: 3px 6px;
+            border-radius: 4px;
+            word-break: break-all;
+            font-size: 0.9em;
+            display: inline-block;
+        }
+
+        .copyable {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .copyable .mono {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 250px;
+        }
+        .copyable svg { stroke: var(--text-secondary); transition: stroke 0.2s; }
+        .copyable:hover svg { stroke: var(--primary); }
+        
+        #chain-explorer-card {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        #chain-display-wrapper {
+            overflow-y: auto;
+            flex-grow: 1;
+            padding-right: 10px; /* for scrollbar */
+        }
+        #chain-display { display: flex; flex-direction: column; }
+        
+        .block-card {
+            padding: 20px 10px;
+            border-left: 2px solid var(--border);
+            margin-left: 10px;
+            position: relative;
+        }
+        .block-card::before { /* The node on the connector line */
+            content: '';
+            position: absolute;
+            left: -11px;
+            top: 24px;
+            width: 20px;
+            height: 20px;
+            background: var(--secondary);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        .block-card.latest::before {
+            background: var(--primary);
+            border-color: var(--primary-hover);
+        }
+        .block-card:hover::before { border-color: var(--primary); }
+        
+        .block-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; flex-wrap: wrap; gap: 10px;
+        }
+        .block-header h4 { font-size: 1.1rem; font-weight: 600; color: var(--primary); }
+        .block-header .timestamp { font-size: 0.85rem; color: var(--text-secondary); }
+        .block-details p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; word-break: break-all; }
+        .block-details .hash { font-family: 'Roboto Mono', monospace; color: #79c0ff; }
+        
+        .loader {
+            width: 18px; height: 18px; border: 2px solid #010409;
+            border-bottom-color: transparent; border-radius: 50%;
+            display: inline-block; box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation { to { transform: rotate(360deg); } }
+
+        /* Toast Notifications */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow);
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 4.7s forwards;
+        }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--error); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
+
+        @media (max-width: 1200px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .sidebar { height: auto; position: static; }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="particles-js"></div>
+    <div class="aurora-container">
+        <div class="aurora aurora-1"></div>
+        <div class="aurora aurora-2"></div>
+    </div>
+    <div id="toast-container"></div>
+
+    <main class="main-grid">
+        <div class="main-content">
+            <div class="card" style="--i: 1;">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8"></path><path d="M19 22v-6"></path><path d="M22 19l-3-3-3 3"></path><rect x="2" y="10" width="8" height="4"></rect></svg>
+                    Wallet Management
+                </h2>
+                <button class="btn" id="generate-wallet-btn" onclick="generateWallet()">Generate New Wallet</button>
+                <div id="wallet-info" style="display: none; margin-top: 20px;"></div>
+            </div>
+            
+            <div class="card" style="--i: 2;">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    Check Wallet Balance
+                </h2>
+                <div class="input-group">
+                    <input type="text" id="balance-address" placeholder="Enter Wallet Address">
+                </div>
+                <button class="btn" id="check-balance-btn" onclick="checkBalance()">Get Balance</button>
+            </div>
+
+            <div class="card" style="--i: 3;">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    Create a Transaction
+                </h2>
+                <div class="security-warning"><strong>Security Warning:</strong> For this demo, you paste your private key to sign a transaction. In a real application, <strong>NEVER</strong> do this.</div>
+                <div class="input-group">
+                    <textarea id="private-key" placeholder="Your Private Key (kept on client)" rows="3"></textarea>
+                    <input type="text" id="recipient-address" placeholder="Recipient Address">
+                    <input type="number" id="amount" placeholder="Amount">
+                </div>
+                <button class="btn" onclick="createTransaction()">Send Transaction</button>
+            </div>
+
+            <div class="card" style="--i: 4;">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    Mine New Block
+                </h2>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">Clicking 'Mine' will process all pending transactions and create a new block.</p>
+                <button class="btn" id="mine-btn" onclick="mineBlock()">Mine Block</button>
+            </div>
+        </div>
+
+        <aside class="sidebar">
+            <div class="card" id="chain-explorer-card" style="--i: 5;">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
+                    The Ledger
+                </h2>
+                <p style="color: var(--text-secondary); margin-bottom: 15px;">Chain Length: <strong id="chain-length">0</strong></p>
+                <div id="chain-display-wrapper">
+                    <div id="chain-display"></div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        particlesJS("particles-js", {
+            "particles": { "number": { "value": 50 }, "color": { "value": "#2DD4BF" }, "shape": { "type": "circle" }, "opacity": { "value": 0.5, "random": true }, "size": { "value": 3, "random": true }, "line_linked": { "enable": true, "distance": 150, "color": "#8B949E", "opacity": 0.2, "width": 1 }, "move": { "enable": true, "speed": 1, "direction": "none", "out_mode": "out" } },
+            "interactivity": { "detect_on": "canvas", "events": { "onhover": { "enable": true, "mode": "grab" }, "onclick": { "enable": true, "mode": "push" } }, "modes": { "grab": { "distance": 140, "line_linked": { "opacity": 0.5 } }, "push": { "particles_nb": 4 } } }
+        });
+
+        // --- UI Helper Functions ---
+        function showToast(type, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<strong>${type === 'success' ? 'Success' : 'Error'}:</strong> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+
+        function copyToClipboard(text, element) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalIcon = element.innerHTML;
+                element.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                setTimeout(() => { element.innerHTML = originalIcon; }, 1500);
+            });
+        }
+
+        // === Wallet Functions ===
+        async function generateWallet() {
+            try {
+                const response = await fetch('/wallet/new');
+                if (!response.ok) throw new Error('Network response was not ok.');
+                const data = await response.json();
+                const walletDiv = document.getElementById('wallet-info');
+                const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+                
+                walletDiv.innerHTML = `
+                    <div class="input-group">
+                        <p><strong>Address:</strong><br><span class="copyable" onclick="copyToClipboard('${data.address}', this.querySelector('.icon'))"><span class="mono">${data.address}</span><span class="icon">${copyIcon}</span></span></p>
+                        <p><strong>Public Key:</strong><br><span class="copyable" onclick="copyToClipboard('${data.public_key}', this.querySelector('.icon'))"><span class="mono">${data.public_key}</span><span class="icon">${copyIcon}</span></span></p>
+                        <div class="security-warning" style="margin: 10px 0 0 0;">
+                            <strong>IMPORTANT:</strong> Save this private key securely.
+                            <p style="margin-top: 5px;" class="copyable" onclick="copyToClipboard('${data.private_key}', this.querySelector('.icon'))"><strong>Private Key:</strong><br><span class="mono">${data.private_key}</span><span class="icon">${copyIcon}</span></p>
+                        </div>
+                    </div>
+                `;
+                walletDiv.style.display = 'block';
+                showToast('success', 'New wallet generated!');
+            } catch (e) {
+                showToast('error', 'Could not generate wallet.');
+            }
+        }
+
+        async function checkBalance() {
+            const address = document.getElementById('balance-address').value;
+            if (!address) {
+                showToast('error', 'Please enter a wallet address.');
+                return;
+            }
+            try {
+                const response = await fetch(`/wallet/balance?address=${address}`);
+                if (!response.ok) throw new Error('Address not found or server error.');
+                const data = await response.json();
+                showToast('success', `Balance for ${data.address.substring(0,10)}... is ${data.balance}`);
+            } catch(e) {
+                showToast('error', 'Failed to fetch balance.');
+            }
+        }
+
+        // === Blockchain Interaction Functions ===
+        async function createTransaction() {
+            const transaction = {
+                private_key: document.getElementById('private-key').value,
+                recipient_address: document.getElementById('recipient-address').value,
+                amount: document.getElementById('amount').value
+            };
+            if (!transaction.private_key || !transaction.recipient_address || !transaction.amount) {
+                showToast('error', 'All fields are required.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/transactions/new', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transaction)
+                });
+                const data = await response.json();
+                if(!response.ok) throw new Error(data.message || 'Transaction failed.');
+                showToast('success', data.message);
+                document.getElementById('private-key').value = '';
+                document.getElementById('recipient-address').value = '';
+                document.getElementById('amount').value = '';
+            } catch(e) {
+                showToast('error', e.message);
+            }
+        }
+
+        async function mineBlock() {
+            try {
+                const response = await fetch('/mine', { method: 'POST' });
+                if (!response.ok) throw new Error('Mining failed on server.');
+                const data = await response.json();
+                showToast('success', `${data.message} Mined Block #${data.index}`);
+                refreshChain();
+            } catch (e) {
+                showToast('error', 'Mining failed.');
+            }
+        }
+
+        async function refreshChain() {
+            try {
+                const response = await fetch('/chain');
+                if (!response.ok) throw new Error('Could not connect to the blockchain node.');
+                const data = await response.json();
+                document.getElementById('chain-length').innerText = data.length;
+                const chainDisplay = document.getElementById('chain-display');
+                const reversedChain = data.chain.slice().reverse();
+
+                chainDisplay.innerHTML = reversedChain.map((block, index) => `
+                    <div class="block-card ${index === 0 ? 'latest' : ''}">
+                        <div class="block-header">
+                            <h4>Block #${block.index}</h4>
+                            <span class="timestamp">${new Date(block.timestamp * 1000).toLocaleString()}</span>
+                        </div>
+                        <div class="block-details">
+                            <p><strong>Transactions:</strong> ${block.transactions.length}</p>
+                            <p><strong>Proof:</strong> ${block.proof}</p>
+                            <p><strong>Prev. Hash:</strong> <span class="hash">${block.previous_hash.substring(0,20)}...</span></p>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                showToast('error', e.message);
+            }
+        }
+        
+        // Initial chain load
+        document.addEventListener('DOMContentLoaded', refreshChain);
+    </script>
+</body>
+</html>
