@@ -4,5 +4,5 @@ Requirements:
 
 Steps to Run:
 1) Download and extract repository
-2) Run build.bat
+2) Run build.bat (It will automatically set-up a Virtual Environment and install dependencies from requirements.txt)
 3) Ctrl+click on Website URL in terminal (or) Open http://127.0.0.1:5000 in browser.
